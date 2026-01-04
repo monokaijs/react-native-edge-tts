@@ -131,11 +131,32 @@ export class IsomorphicEdgeTTS {
 
     // Convert Uint8Array chunks to Blob (works in both Node.js and browsers)
     const audioBuffer = concatUint8Arrays(audioChunks);
-    // TS 5.5+ tightens BlobPart types to require ArrayBuffer-backed views.
-    // Our Uint8Array is ArrayBuffer-backed, so cast for type compatibility.
-    const audioBlob = new Blob([
-      audioBuffer as unknown as ArrayBufferView<ArrayBuffer>
-    ], { type: "audio/mpeg" });
+
+    let audioBlob: Blob;
+    try {
+      // Standard Blob creation
+      audioBlob = new Blob([audioBuffer as any], { type: "audio/mpeg" });
+    } catch (e) {
+      // Fallback for environments with restricted Blob support (e.g., React Native)
+      // This implements a minimal Blob-like object that satisfies the interface
+      audioBlob = {
+        size: audioBuffer.length,
+        type: "audio/mpeg",
+        arrayBuffer: async () => audioBuffer.buffer,
+        slice: (start?: number, end?: number, contentType?: string) => {
+          const sliced = audioBuffer.slice(start, end);
+          const blob = new Blob([sliced], { type: contentType || "audio/mpeg" });
+          return blob;
+        },
+        text: async () => new TextDecoder().decode(audioBuffer),
+        stream: () => new ReadableStream({
+          start(controller) {
+            controller.enqueue(audioBuffer);
+            controller.close();
+          }
+        })
+      } as unknown as Blob;
+    }
 
     return {
       audio: audioBlob,

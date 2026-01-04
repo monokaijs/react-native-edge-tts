@@ -218,14 +218,22 @@ export class IsomorphicCommunicate {
 
   private async createWebSocket(url: string): Promise<WebSocket> {
     // Handle WebSocket creation across different environments
-    const isNode = typeof globalThis !== 'undefined'
-      ? globalThis.process?.versions?.node !== undefined
-      : typeof process !== 'undefined' && process.versions?.node !== undefined;
+    // Handle WebSocket creation across different environments
+    const isReactNative = typeof navigator !== 'undefined' && navigator.product === 'ReactNative';
+
+    // Strict Node.js check: must have process.versions.node AND not be React Native
+    const isNode = !isReactNative && (
+      (typeof globalThis !== 'undefined' && globalThis.process?.versions?.node !== undefined) ||
+      (typeof process !== 'undefined' && process.versions?.node !== undefined)
+    );
 
     if (isNode) {
       // Node.js: Try to dynamically import ws library for better compatibility
       try {
-        const { default: WS } = await import('ws');
+        // Use module.require or equivalent to avoid static analysis tools trying to bundle 'ws'
+        // in environments where it doesn't exist (like React Native with strict resolvers)
+        const wsModule = 'ws';
+        const { default: WS } = await import(wsModule);
         return new WS(url, {
           headers: WSS_HEADERS,
         }) as any;
@@ -234,7 +242,7 @@ export class IsomorphicCommunicate {
         console.warn('ws library not available, using native WebSocket without headers');
         return new WebSocket(url);
       }
-    } else if (typeof navigator !== 'undefined' && navigator.product === 'ReactNative') {
+    } else if (isReactNative) {
       // React Native: supports headers in the 3rd argument
       // We must cast to any because standard DOM WebSocket types don't include the options argument
       const RNWebSocket = WebSocket as any;
