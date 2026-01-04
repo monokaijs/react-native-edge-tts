@@ -234,6 +234,13 @@ export class IsomorphicCommunicate {
         console.warn('ws library not available, using native WebSocket without headers');
         return new WebSocket(url);
       }
+    } else if (typeof navigator !== 'undefined' && navigator.product === 'ReactNative') {
+      // React Native: supports headers in the 3rd argument
+      // We must cast to any because standard DOM WebSocket types don't include the options argument
+      const RNWebSocket = WebSocket as any;
+      return new RNWebSocket(url, null, {
+        headers: WSS_HEADERS,
+      });
     } else {
       // Browser/Deno: Use native WebSocket
       // Browsers automatically set appropriate headers like Origin
