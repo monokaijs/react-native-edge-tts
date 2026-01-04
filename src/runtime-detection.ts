@@ -3,13 +3,14 @@
  */
 
 export interface RuntimeInfo {
-  name: 'node' | 'deno' | 'bun' | 'browser' | 'webworker' | 'unknown';
+  name: 'node' | 'deno' | 'bun' | 'browser' | 'webworker' | 'react-native' | 'unknown';
   version?: string;
   isNode: boolean;
   isDeno: boolean;
   isBun: boolean;
   isBrowser: boolean;
   isWebWorker: boolean;
+  isReactNative: boolean;
 }
 
 /**
@@ -23,6 +24,7 @@ export function detectRuntime(): RuntimeInfo {
     isBun: false,
     isBrowser: false,
     isWebWorker: false,
+    isReactNative: false,
   };
 
   // Check for Deno
@@ -56,6 +58,14 @@ export function detectRuntime(): RuntimeInfo {
     return info;
   }
 
+  // Check for React Native
+  if (typeof navigator !== 'undefined' && navigator.product === 'ReactNative') {
+    info.name = 'react-native';
+    info.isReactNative = true; // Use a new property or map to browser/isMobile
+    // We should add isReactNative to the interface
+    return info;
+  }
+
   // Check for Browser
   if (typeof window !== 'undefined') {
     info.name = 'browser';
@@ -72,7 +82,7 @@ export function detectRuntime(): RuntimeInfo {
 export function getFetch(): typeof fetch {
   const runtime = detectRuntime();
 
-  if (runtime.isDeno || runtime.isBrowser || runtime.isWebWorker) {
+  if (runtime.isDeno || runtime.isBrowser || runtime.isWebWorker || runtime.isReactNative) {
     return globalThis.fetch;
   }
 
@@ -98,7 +108,7 @@ export function getFetch(): typeof fetch {
 export function getWebSocket(): any {
   const runtime = detectRuntime();
 
-  if (runtime.isDeno || runtime.isBrowser || runtime.isWebWorker) {
+  if (runtime.isDeno || runtime.isBrowser || runtime.isWebWorker || runtime.isReactNative) {
     return globalThis.WebSocket;
   }
 
@@ -122,6 +132,17 @@ export function getCrypto(): Crypto {
 
   if (runtime.isDeno || runtime.isBrowser || runtime.isWebWorker) {
     return globalThis.crypto;
+  }
+
+  if (runtime.isReactNative) {
+    if (typeof globalThis.crypto !== 'undefined') {
+      return globalThis.crypto;
+    }
+    // For React Native, consumers might need to install 'react-native-quick-crypto' 
+    // or we can fallback to a JS implementation if not available.
+    // For now, we'll try to return globalThis.crypto if checks pass, otherwise throw or return undefined to be handled by caller
+    // But since this function returns Crypto, we must return something or throw.
+    throw new Error('Crypto API not available. Please install "react-native-get-random-values" and "expo-crypto" or "react-native-quick-crypto"');
   }
 
   if (runtime.isNode || runtime.isBun) {

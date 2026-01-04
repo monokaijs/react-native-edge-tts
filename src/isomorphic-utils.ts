@@ -12,18 +12,26 @@ import { ValueError } from "./exceptions";
  */
 export function connectId(): string {
   // Use Web Crypto API available in both Node.js 16+ and all modern browsers
-  const array = new Uint8Array(16);
-  globalThis.crypto.getRandomValues(array);
+  if (typeof globalThis.crypto !== 'undefined' && globalThis.crypto.getRandomValues) {
+    const array = new Uint8Array(16);
+    globalThis.crypto.getRandomValues(array);
 
-  // Set version (4) and variant bits according to RFC 4122
-  array[6] = (array[6] & 0x0f) | 0x40;
-  array[8] = (array[8] & 0x3f) | 0x80;
+    // Set version (4) and variant bits according to RFC 4122
+    array[6] = (array[6] & 0x0f) | 0x40;
+    array[8] = (array[8] & 0x3f) | 0x80;
 
-  // Convert to hex string and format as UUID, then remove hyphens
-  const hex = Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
-  const uuid = `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
+    // Convert to hex string and format as UUID, then remove hyphens
+    const hex = Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
+    const uuid = `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
 
-  return uuid.replace(/-/g, '');
+    return uuid.replace(/-/g, '');
+  }
+
+  // Fallback for React Native or other environments without full crypto (RFC4122 v4 compliant-ish)
+  return 'xxxxxxxxxxxx4xxxyxxxxxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+    const r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
 }
 
 /**

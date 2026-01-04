@@ -1,5 +1,6 @@
 import { TRUSTED_CLIENT_TOKEN } from './constants';
 import { SkewAdjustmentError } from "./exceptions";
+import { sha256val } from './utils/sha256';
 
 const WIN_EPOCH = 11644473600;
 const S_TO_NS = 1e9;
@@ -60,15 +61,6 @@ export class IsomorphicDRM {
 
     const strToHash = `${ticks.toFixed(0)}${TRUSTED_CLIENT_TOKEN}`;
 
-    // Use Web Crypto API directly - available in both Node.js 16+ and browsers
-    if (!globalThis.crypto || !globalThis.crypto.subtle) {
-      throw new Error('Web Crypto API not available');
-    }
-
-    const encoder = new TextEncoder();
-    const data = encoder.encode(strToHash);
-    const hashBuffer = await globalThis.crypto.subtle.digest('SHA-256', data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
+    return sha256val(strToHash);
   }
 } 
